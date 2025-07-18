@@ -43,7 +43,7 @@ worm to do:
 
 
 // Worms
-const totalWorms = 25;
+const totalWorms = 50;
 const wormRadius = 0.03;
 const wormLength = 0.7;
 const wormSegments = 20;
@@ -52,6 +52,8 @@ const randomOffset = scale => (Math.random() - 0.5) * scale;
 // Track last placed worm position to ensure a minimum distance between worms
 let lastWormPos = null;
 const minDistanceBetweenWorms = 1.8;
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambientLight);
 
 for (let i = 0; i < totalWorms; i++) {
   const wormShape = new THREE.CatmullRomCurve3([
@@ -62,16 +64,6 @@ for (let i = 0; i < totalWorms; i++) {
   ]);
 
   const wormGeometry = new THREE.TubeGeometry(wormShape, wormSegments * 3, wormRadius, 8, false);
-  const material = new THREE.MeshStandardMaterial({
-    color: 0xdea3ad,
-    emissive: 0x000000,
-    emissiveIntensity: 0,
-    metalness: 0,
-    roughness: 1
-  });
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.015);
-  scene.add(ambientLight);
-
   const p = (i / totalWorms + Math.random() * 0.05) % 1;
   const center = wormholeGeometry.parameters.path.getPointAt(p);
   const tangent = wormholeGeometry.parameters.path.getTangentAt(p).normalize();
@@ -95,6 +87,18 @@ for (let i = 0; i < totalWorms; i++) {
     wormPos.addScaledVector(new THREE.Vector3().subVectors(wormPos, lastWormPos).normalize());
   }
   lastWormPos = wormPos;
+
+  // Give each worm a slightly different color
+  const hue = ((340 + Math.random() * 25) % 360) / 360;
+  const lightness = Math.random() * 0.1 + 0.7;
+  const saturation = 0.5 + Math.random() * 0.4;
+  const material = new THREE.MeshStandardMaterial({
+    color: new THREE.Color().setHSL(hue, saturation, lightness),
+    emissive: 0x000000,
+    emissiveIntensity: 0,
+    metalness: 0,
+    roughness: 1
+  });
   const worm = new THREE.Mesh(wormGeometry, material);
 
   // Create head and tail
