@@ -5,6 +5,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 
+let paused = false;
 const width = window.innerWidth;
 const height = window.innerHeight;
 const scene = new THREE.Scene();
@@ -30,6 +31,89 @@ const lineMaterial = new THREE.LineBasicMaterial({ color: 0xab58ff });
 const tubeLines = new THREE.LineSegments(wireframe, lineMaterial);
 scene.add(tubeLines);
 
+
+/* 
+worm to do:
+  give them round grey circles to denote segments
+  eyes? unsure.
+  make them all slightly different shades of pink
+  make sure to respawn the worms as you go back through the tunnel on repeat
+  have them appear slightly sooner and fade in
+*/
+
+
+// Worms
+const totalWorms = 25;
+const wormRadius = 0.03;
+const wormLength = 0.7;
+const wormSegments = 20;
+const randomOffset = scale => (Math.random() - 0.5) * scale;
+
+// Track last placed worm position to ensure a minimum distance between worms
+let lastWormPos = null;
+const minDistanceBetweenWorms = 1.8;
+
+for (let i = 0; i < totalWorms; i++) {
+  const wormShape = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0, 0, -wormLength / 2),
+    new THREE.Vector3(0.05 + randomOffset(0.05), 0.05 + randomOffset(0.05), -wormLength / 6),
+    new THREE.Vector3(-0.05 + randomOffset(0.05), 0.05 + randomOffset(0.05), wormLength / 6),
+    new THREE.Vector3(0, 0, wormLength / 2)
+  ]);
+
+  const wormGeometry = new THREE.TubeGeometry(wormShape, wormSegments * 3, wormRadius, 8, false);
+  const material = new THREE.MeshStandardMaterial({
+    color: 0xdea3ad,
+    emissive: 0x000000,
+    emissiveIntensity: 0,
+    metalness: 0,
+    roughness: 1
+  });
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.015);
+  scene.add(ambientLight);
+
+  const p = (i / totalWorms + Math.random() * 0.05) % 1;
+  const center = wormholeGeometry.parameters.path.getPointAt(p);
+  const tangent = wormholeGeometry.parameters.path.getTangentAt(p).normalize();
+
+  const up = new THREE.Vector3(0, 1, 0);
+  if (Math.abs(tangent.dot(up)) > 0.9) up.set(1, 0, 0); // avoid parallel
+
+  const normal = new THREE.Vector3().crossVectors(tangent, up).normalize();
+  const side = new THREE.Vector3().crossVectors(normal, tangent).normalize();
+
+  // distance from the center of the wormhole
+  const radialOffset = 0.35 + Math.random() * 0.1;
+  const angle = Math.random() * Math.PI * 2;
+
+  const offset = new THREE.Vector3()
+    .addScaledVector(normal, Math.cos(angle) * radialOffset)
+    .addScaledVector(side, Math.sin(angle) * radialOffset);
+
+  const wormPos = new THREE.Vector3().addVectors(center, offset);
+  if (lastWormPos && wormPos.distanceTo(lastWormPos) < minDistanceBetweenWorms) {
+    wormPos.addScaledVector(new THREE.Vector3().subVectors(wormPos, lastWormPos).normalize());
+  }
+  lastWormPos = wormPos;
+  const worm = new THREE.Mesh(wormGeometry, material);
+
+  // Create head and tail
+  const headTailGeometry = new THREE.SphereGeometry(wormRadius);
+  const createHeadTail = (pos, tangent) => {
+    const mesh = new THREE.Mesh(headTailGeometry, material);
+    mesh.position.copy(pos);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent.clone().normalize());
+    return mesh;
+  }
+  const head = createHeadTail(wormShape.getPoint(1), wormShape.getTangent(1));
+  const tail = createHeadTail(wormShape.getPoint(0), wormShape.getTangent(0));
+  worm.add(head);
+  worm.add(tail);
+
+  worm.position.copy(wormPos);
+  scene.add(worm);
+}
+
 const updateCamera = (t) => {
   const startOffset = 0.05;
   const looptime = 13000;
@@ -43,9 +127,30 @@ const updateCamera = (t) => {
   camera.lookAt(lookAt);
 };
 
+let pauseStart = 0;
+let totalPausedTime = 0;
 const animate = (t = 0) => {
   requestAnimationFrame(animate);
-  updateCamera(t);
-  composer.render(scene, camera);
-}
+  if (!paused) {
+    const adjustedTime = t - totalPausedTime;
+    updateCamera(adjustedTime);
+    composer.render(scene, camera);
+  }
+};
 animate();
+
+// Play/pause button
+const container = document.querySelector(".pause-container");
+const button = document.querySelector(".btn-play-pause");
+container.appendChild(renderer.domElement);
+
+button.addEventListener("click", () => {
+  if (!paused) {
+    pauseStart = performance.now();
+    button.innerText = "Play";
+  } else {
+    totalPausedTime += performance.now() - pauseStart;
+    button.innerText = "Pause";
+  }
+  paused = !paused;
+});

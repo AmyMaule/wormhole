@@ -1,4 +1,23 @@
 body {
   background-color: #333;
   overflow: hidden;
+  margin: 0;
+}
+
+.pause-container {
+  position: relative;
+}
+
+.btn-play-pause {
+  position: absolute;
+  font-size: 1rem;
+  width: 5rem;
+  background: rgba(0, 0, 0, 0.6);
+  color: #ddb9ff;
+  border: 1px solid #ddb9ff;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  top: 1rem;
+  right: 1rem;
 }
