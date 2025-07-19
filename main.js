@@ -35,29 +35,20 @@ const lineMaterial = new THREE.LineBasicMaterial({ color: 0xab58ff });
 const tubeLines = new THREE.LineSegments(wireframe, lineMaterial);
 scene.add(tubeLines);
 
-
-/* 
-worm to do:
-  make sure to respawn the worms as you go back through the tunnel on repeat
-  have them appear slightly sooner and fade in
-  set min distance between worms
-*/
-
-
 // Worms
-const totalWorms = 80;
+const maxWorms = 150;
 const wormRadius = 0.03;
 const wormLength = 0.7;
 const wormSegments = 80;
 const randomOffset = scale => (Math.random() - 0.5) * scale;
 
-// Track last placed worm position to ensure a minimum distance between worms
-let lastWormPos = null;
-const minDistanceBetweenWorms = 1.8;
+// Track last 8 placed worm positions to ensure a minimum distance between worms
+const wormPositions = [];
+const minDistanceBetweenWorms = 0.5;
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
 scene.add(ambientLight);
 
-for (let i = 0; i < totalWorms; i++) {
+for (let i = 0; i < maxWorms; i++) {
   const wormShape = new THREE.CatmullRomCurve3([
     new THREE.Vector3(0, 0, -wormLength / 2),
     new THREE.Vector3(0.05 + randomOffset(0.05), 0.05 + randomOffset(0.05), -wormLength / 6),
@@ -66,7 +57,7 @@ for (let i = 0; i < totalWorms; i++) {
   ]);
 
   const wormGeometry = new THREE.TubeGeometry(wormShape, wormSegments, wormRadius, 36, false);
-  const p = (i / totalWorms + Math.random() * 0.05) % 1;
+  const p = (i / maxWorms + Math.random() * 0.05) % 1;
   const center = wormholeGeometry.parameters.path.getPointAt(p);
   const tangent = wormholeGeometry.parameters.path.getTangentAt(p).normalize();
 
@@ -77,28 +68,46 @@ for (let i = 0; i < totalWorms; i++) {
   const side = new THREE.Vector3().crossVectors(normal, tangent).normalize();
 
   // distance from the center of the wormhole
-  const radialOffset = 0.35 + Math.random() * 0.1;
-  const angle = Math.random() * Math.PI * 2;
-
-  const offset = new THREE.Vector3()
-    .addScaledVector(normal, Math.cos(angle) * radialOffset)
-    .addScaledVector(side, Math.sin(angle) * radialOffset);
-
-  const wormPos = new THREE.Vector3().addVectors(center, offset);
-  if (lastWormPos && wormPos.distanceTo(lastWormPos) < minDistanceBetweenWorms) {
-    wormPos.addScaledVector(new THREE.Vector3().subVectors(wormPos, lastWormPos).normalize());
+  const generateRandomOffset = () => {
+    const angle = Math.random() * Math.PI * 2;
+    const radial = 0.35 + Math.random() * 0.1;
+    return new THREE.Vector3()
+      .addScaledVector(normal, Math.cos(angle) * radial)
+      .addScaledVector(side, Math.sin(angle) * radial);
   }
-  lastWormPos = wormPos;
+
+  const offset = generateRandomOffset();
+  const wormPos = new THREE.Vector3().addVectors(center, offset);
+  const isValidPosition = (pos) => wormPositions.every(position => pos.distanceTo(position) >= minDistanceBetweenWorms);
+  if (!isValidPosition(wormPos)) {
+    // Give each worm 20 attempts to find a new position
+    let attemptsRemaining = 20;
+    while (attemptsRemaining > 0) {
+      const newWormPos = new THREE.Vector3().addVectors(center, generateRandomOffset());
+      if (isValidPosition(newWormPos)) break;
+      attemptsRemaining--;
+    }
+    // If no attempts remaining, skip this worm
+    continue;
+  }
+  // Ensure wormPositions is always <=8 length
+  if (wormPositions.length === 8) {
+    wormPositions.shift();
+  }
+  wormPositions.push(wormPos);
 
   // Give each worm a different color
   const hue = Math.floor(Math.random() * 360) / 360;
   const saturation = 0.5 + Math.random() * 0.4;
-  const wormColor = new THREE.Color().setHSL(hue, saturation, 0.7);
+  const wormColor = new THREE.Color().setHSL(hue, saturation, 0.68);
   const wormMaterial = new THREE.MeshStandardMaterial({
     map: wormImg,
     color: wormColor,
   });
   const worm = new THREE.Mesh(wormGeometry, wormMaterial);
+
+  // Keep randomized positions but increase likelihood worms tilt upwards (up to 30 deg)
+  worm.rotation.x += Math.random() * (Math.PI / 6);
 
   // Create head and tail
   const headTailGeometry = new THREE.SphereGeometry(wormRadius);
