@@ -1,9 +1,13 @@
 import * as THREE from "three";
-
 import spline from "./spline";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+
+const loader = new THREE.TextureLoader();
+const wormImg = loader.load('./wormrings.png');
+wormImg.wrapS = THREE.RepeatWrapping;
+wormImg.wrapT = THREE.ClampToEdgeWrapping;
 
 let paused = false;
 const width = window.innerWidth;
@@ -34,25 +38,23 @@ scene.add(tubeLines);
 
 /* 
 worm to do:
-  give them round grey circles to denote segments
-  eyes? unsure.
-  make them all slightly different shades of pink
   make sure to respawn the worms as you go back through the tunnel on repeat
   have them appear slightly sooner and fade in
+  set min distance between worms
 */
 
 
 // Worms
-const totalWorms = 50;
+const totalWorms = 80;
 const wormRadius = 0.03;
 const wormLength = 0.7;
-const wormSegments = 20;
+const wormSegments = 80;
 const randomOffset = scale => (Math.random() - 0.5) * scale;
 
 // Track last placed worm position to ensure a minimum distance between worms
 let lastWormPos = null;
 const minDistanceBetweenWorms = 1.8;
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
 scene.add(ambientLight);
 
 for (let i = 0; i < totalWorms; i++) {
@@ -63,7 +65,7 @@ for (let i = 0; i < totalWorms; i++) {
     new THREE.Vector3(0, 0, wormLength / 2)
   ]);
 
-  const wormGeometry = new THREE.TubeGeometry(wormShape, wormSegments * 3, wormRadius, 8, false);
+  const wormGeometry = new THREE.TubeGeometry(wormShape, wormSegments, wormRadius, 36, false);
   const p = (i / totalWorms + Math.random() * 0.05) % 1;
   const center = wormholeGeometry.parameters.path.getPointAt(p);
   const tangent = wormholeGeometry.parameters.path.getTangentAt(p).normalize();
@@ -88,23 +90,21 @@ for (let i = 0; i < totalWorms; i++) {
   }
   lastWormPos = wormPos;
 
-  // Give each worm a slightly different color
-  const hue = ((340 + Math.random() * 25) % 360) / 360;
-  const lightness = Math.random() * 0.1 + 0.7;
+  // Give each worm a different color
+  const hue = Math.floor(Math.random() * 360) / 360;
   const saturation = 0.5 + Math.random() * 0.4;
-  const material = new THREE.MeshStandardMaterial({
-    color: new THREE.Color().setHSL(hue, saturation, lightness),
-    emissive: 0x000000,
-    emissiveIntensity: 0,
-    metalness: 0,
-    roughness: 1
+  const wormColor = new THREE.Color().setHSL(hue, saturation, 0.7);
+  const wormMaterial = new THREE.MeshStandardMaterial({
+    map: wormImg,
+    color: wormColor,
   });
-  const worm = new THREE.Mesh(wormGeometry, material);
+  const worm = new THREE.Mesh(wormGeometry, wormMaterial);
 
   // Create head and tail
   const headTailGeometry = new THREE.SphereGeometry(wormRadius);
   const createHeadTail = (pos, tangent) => {
-    const mesh = new THREE.Mesh(headTailGeometry, material);
+    const headTailMaterial = new THREE.MeshStandardMaterial({ color: wormColor });
+    const mesh = new THREE.Mesh(headTailGeometry, headTailMaterial);
     mesh.position.copy(pos);
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent.clone().normalize());
     return mesh;
@@ -113,14 +113,13 @@ for (let i = 0; i < totalWorms; i++) {
   const tail = createHeadTail(wormShape.getPoint(0), wormShape.getTangent(0));
   worm.add(head);
   worm.add(tail);
-
   worm.position.copy(wormPos);
   scene.add(worm);
 }
 
 const updateCamera = (t) => {
   const startOffset = 0.05;
-  const looptime = 13000;
+  const looptime = 15000;
   const lookAhead = 0.02;
   const progress = ((t * 0.25) % looptime) / looptime + startOffset;
   const cameraProgress = progress % 1;
