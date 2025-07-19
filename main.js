@@ -40,7 +40,6 @@ const maxWorms = 150;
 const wormRadius = 0.03;
 const wormLength = 0.7;
 const wormSegments = 80;
-const randomOffset = scale => (Math.random() - 0.5) * scale;
 
 // Track last 8 placed worm positions to ensure a minimum distance between worms
 const wormPositions = [];
@@ -49,10 +48,20 @@ const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
 scene.add(ambientLight);
 
 for (let i = 0; i < maxWorms; i++) {
+  const getWiggle = () => (Math.random() + Math.random() - 1) * 0.05;
+  const straightWorm = Math.random() > 0.9;
   const wormShape = new THREE.CatmullRomCurve3([
     new THREE.Vector3(0, 0, -wormLength / 2),
-    new THREE.Vector3(0.05 + randomOffset(0.05), 0.05 + randomOffset(0.05), -wormLength / 6),
-    new THREE.Vector3(-0.05 + randomOffset(0.05), 0.05 + randomOffset(0.05), wormLength / 6),
+    new THREE.Vector3(
+      straightWorm ? 0.01 : 0.06 + getWiggle(), 
+      straightWorm ? 0.01 : 0.04 + getWiggle(),
+      -wormLength / 6
+    ),
+    new THREE.Vector3(
+      straightWorm ? 0.01 : -0.06 + getWiggle(), 
+      straightWorm ? 0.01 : 0.04 + getWiggle(), 
+      wormLength / 6
+    ),
     new THREE.Vector3(0, 0, wormLength / 2)
   ]);
 
@@ -106,8 +115,8 @@ for (let i = 0; i < maxWorms; i++) {
   });
   const worm = new THREE.Mesh(wormGeometry, wormMaterial);
 
-  // Keep randomized positions but increase likelihood worms tilt upwards (up to 30 deg)
-  worm.rotation.x += Math.random() * (Math.PI / 6);
+  // Keep randomized positions but increase likelihood worms tilt upwards (up to 60 deg)
+  worm.rotation.x += Math.random() * (Math.PI / 3);
 
   // Create head and tail
   const headTailGeometry = new THREE.SphereGeometry(wormRadius);
