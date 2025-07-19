@@ -5,7 +5,7 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 
 const loader = new THREE.TextureLoader();
-const wormImg = loader.load('./wormrings.png');
+const wormImg = loader.load('/wormrings.png');
 wormImg.wrapS = THREE.RepeatWrapping;
 wormImg.wrapT = THREE.ClampToEdgeWrapping;
 
