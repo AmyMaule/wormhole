@@ -1,1 +1,1 @@
-Gummy worms in a wormhole using Three.js. Live version <a href="https://gummy-worms.pages.dev">here</a>!
+Gummy worms in a wormhole using Three.js. Live version <a href="https://gummy-worms.pages.dev" target="_blank">here</a>!
